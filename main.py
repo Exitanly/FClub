@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import messagebox
 from functools import partial
+from commands import register_user, authenticate_user
 
 class AuthWindow:
     def __init__(self, root, on_auth_success):
         self.root = root
         self.on_auth_success = on_auth_success
         
-        # Создаем окно авторизации
+        # окно авторизации
         self.auth_window = tk.Toplevel(root)
         self.auth_window.title("Авторизация")
         self.auth_window.geometry("300x200")
@@ -47,12 +48,20 @@ class AuthWindow:
         window.geometry(f'+{x}+{y}')
     
     def login(self):
-        # Здесь должна быть проверка логина/пароля
-        if self.username.get() and self.password.get():
-            self.on_auth_success(self.username.get())
+        username = self.username.get()
+        password = self.password.get()
+        
+        if not username or not password:
+            messagebox.showerror("Ошибка", "Введите логин и пароль")
+            return
+            
+        success, message, role = authenticate_user(username, password)
+        
+        if success:
+            self.on_auth_success(username, role)
             self.auth_window.destroy()
         else:
-            messagebox.showerror("Ошибка", "Введите логин и пароль")
+            messagebox.showerror("Ошибка", message)
     
     def register(self):
         # Создаем окно регистрации
@@ -71,7 +80,7 @@ class AuthWindow:
         tk.Label(frame, text="Логин:").grid(row=0, column=0, sticky="w")
         tk.Entry(frame, textvariable=self.username).grid(row=0, column=1, pady=5)
         
-        tk.Label(frame, text="Email:").grid(row=1, column=0, sticky="w")
+        tk.Label(frame, text="Email: (Необязательно)").grid(row=1, column=0, sticky="w")
         tk.Entry(frame, textvariable=email).grid(row=1, column=1, pady=5)
         
         tk.Label(frame, text="Пароль:").grid(row=2, column=0, sticky="w")
@@ -96,15 +105,22 @@ class AuthWindow:
             messagebox.showerror("Ошибка", "Пароли не совпадают")
             return
             
-        # Здесь должна быть логика сохранения пользователя
-        messagebox.showinfo("Успех", "Регистрация прошла успешно!")
-        window.destroy()
+        # Регистрация пользователя в БД
+        success, message = register_user(self.username.get(), email.get(), self.password.get())
+        
+        if success:
+            messagebox.showinfo("Успех", message)
+            window.destroy()
+        else:
+            messagebox.showerror("Ошибка", message)
 
 class MainApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Главное окно")
         self.root.geometry("800x600")
+        self.current_user = None
+        self.user_role = None
         
         # Меню
         self.create_menu()
@@ -157,24 +173,31 @@ class MainApp:
         self.root.withdraw()
         AuthWindow(self.root, self.on_auth_success)
     
-    def on_auth_success(self, username):
+    def on_auth_success(self, username, role):
         # Разблокируем главное окно после успешной авторизации
+        self.current_user = username
+        self.user_role = role
         self.root.deiconify()
-        self.status_var.set(f"Авторизован: {username}")
+        self.status_var.set(f"Авторизован: {username} ({role})")
         messagebox.showinfo("Добро пожаловать", f"Здравствуйте, {username}!")
     
     def logout(self):
+        self.current_user = None
+        self.user_role = None
         self.status_var.set("Не авторизован")
         self.show_auth_window()
     
     def open_profile(self):
-        messagebox.showinfo("Профиль", "Здесь будет профиль пользователя")
+        if self.current_user:
+            messagebox.showinfo("Профиль", f"Профиль пользователя: {self.current_user}\nРоль: {self.user_role}")
+        else:
+            messagebox.showerror("Ошибка", "Вы не авторизованы")
     
     def open_settings(self):
         messagebox.showinfo("Настройки", "Здесь будут настройки приложения")
     
     def show_about(self):
-        messagebox.showinfo("О программе", "Мое первое приложение на Tkinter\nВерсия 1.0")
+        messagebox.showinfo("О программе", "Это приложение футбольного клуба.")
 
 if __name__ == "__main__":
     root = tk.Tk()

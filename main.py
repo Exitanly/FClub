@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
 from functools import partial
-from models import ROLE_PLAYER, ROLE_COACH, User
+from models import ROLE_PLAYER, ROLE_COACH, ROLE_ADMIN, User
 from commands import register_user, authenticate_user
 from player_interface import PlayerInterface
 from coach_interface import CoachInterface
+from admin_interface import AdminInterface
 
 class AuthWindow:
     def __init__(self, root, on_auth_success):
@@ -132,7 +133,7 @@ class MainApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Футбольный клуб - Главное меню")
-        self.root.geometry("1000x700")
+        self.root.geometry("1200x800")
         self.current_user = None
         self.user_role = None
         self.user_id = None
@@ -173,20 +174,26 @@ class MainApp:
         self.user_id = user_id
         self.root.deiconify()
         
-        role_name = "Игрок" if role == ROLE_PLAYER else "Тренер"
-        self.status_var.set(f"Авторизован: {username} ({role_name})")
+        role_names = {
+            ROLE_ADMIN: "Администратор",
+            ROLE_COACH: "Тренер", 
+            ROLE_PLAYER: "Игрок"
+        }
+        self.status_var.set(f"Авторизован: {username} ({role_names.get(role, 'Неизвестная роль')})")
         
         for widget in self.main_frame.winfo_children():
             widget.destroy()
         
-        if role == ROLE_PLAYER:
-            PlayerInterface(self.main_frame, user_id)
-        else:
+        if role == ROLE_ADMIN:
+            AdminInterface(self.main_frame, user_id)
+        elif role == ROLE_COACH:
             CoachInterface(self.main_frame, user_id)
+        else:
+            PlayerInterface(self.main_frame, user_id)
     
     def show_about(self):
         messagebox.showinfo("О программе", 
-                          "Приложение футбольного клуба\nВерсия 2.0\n\n2023")
+                          "Приложение футбольного клуба\nВерсия 3.0\n\n2023")
 
 if __name__ == "__main__":
     root = tk.Tk()

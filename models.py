@@ -4,9 +4,9 @@ from datetime import datetime
 DB = SqliteDatabase('sqlitedb.db')
 
 # Константы для ролей
-ROLE_PLAYER = 'player'
-ROLE_COACH = 'coach'
 ROLE_ADMIN = 'admin'
+ROLE_COACH = 'coach'
+ROLE_PLAYER = 'player'
 
 class BaseModel(Model):
     class Meta:
@@ -22,12 +22,12 @@ class User(BaseModel):
         table_name = 'users'
 
 class Player(BaseModel):
-    id = AutoField()  # Автоматически увеличивающийся ID
-    user = ForeignKeyField(User, unique=True)  # Связь 1:1 с пользователем
+    id = AutoField()
+    user = ForeignKeyField(User, unique=True)
     name = CharField()
     position = CharField()
     jersey_number = IntegerField()
-    join_date = DateField(default=datetime.now)  # Дата с автоматическим заполнением
+    join_date = DateField(default=datetime.now)
 
     class Meta:
         table_name = 'players'
@@ -36,7 +36,7 @@ class Training(BaseModel):
     id = AutoField()
     coach = ForeignKeyField(User)
     date = DateField()
-    duration = IntegerField()  # В минутах
+    duration = IntegerField()  # в минутах
     focus_area = CharField()
     notes = TextField(null=True)
 
@@ -74,20 +74,35 @@ def initialize_database():
         if not User.select().where(User.username == 'admin').exists():
             from hashlib import sha256
             admin_pass = sha256('admin123'.encode()).hexdigest()
-            admin = User.create(
+            User.create(
                 username='admin',
                 password=admin_pass,
                 role=ROLE_ADMIN,
                 email='admin@club.com'
             )
             
-            # Создаем связанную запись игрока для админа (пример)
+            # Создаем тестового тренера
+            coach_pass = sha256('coach123'.encode()).hexdigest()
+            coach = User.create(
+                username='coach',
+                password=coach_pass,
+                role=ROLE_COACH,
+                email='coach@club.com'
+            )
+            
+            # Создаем тестового игрока
+            player_pass = sha256('player123'.encode()).hexdigest()
+            player_user = User.create(
+                username='player',
+                password=player_pass,
+                role=ROLE_PLAYER,
+                email='player@club.com'
+            )
             Player.create(
-                user=admin,
-                name="Администратор Системы",
-                position="Не указана",
-                jersey_number=0,
-                join_date=datetime.now()
+                user=player_user,
+                name="Тестовый Игрок",
+                position="Нападающий",
+                jersey_number=10
             )
 
 if __name__ == "__main__":

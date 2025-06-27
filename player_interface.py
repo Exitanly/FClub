@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from models import Player, Match, PlayerStats, DB, User
-from functools import partial
+from models import Player, Match, PlayerStats, DB, Training, User
 from datetime import datetime
+from functools import partial
 
 class PlayerInterface:
     def __init__(self, root, user_id):
@@ -20,7 +20,100 @@ class PlayerInterface:
         
         self.create_player_info_section()
         self.create_stats_section()
+        self.create_trainings_button()
         
+    def create_trainings_button(self):
+        """Создает кнопку для просмотра тренировок"""
+        btn_frame = tk.Frame(self.frame)
+        btn_frame.pack(fill=tk.X, pady=5)
+        
+        tk.Button(
+            btn_frame,
+            text="Мои тренировки",
+            command=self.show_trainings,
+            bg="#2196F3",
+            fg="white",
+            padx=10,
+            pady=5
+        ).pack(pady=5, fill=tk.X)
+
+    def show_trainings(self):
+        """Показывает окно со списком всех тренировок"""
+        trainings_window = tk.Toplevel(self.root)
+        trainings_window.title("Список тренировок")
+        trainings_window.geometry("900x600")
+        
+        # Основной фрейм
+        main_frame = tk.Frame(trainings_window, padx=10, pady=10)
+        main_frame.pack(expand=True, fill=tk.BOTH)
+        
+        # Таблица тренировок
+        columns = ("id", "date", "duration", "focus_area", "coach")
+        self.trainings_tree = ttk.Treeview(
+            main_frame, 
+            columns=columns, 
+            show="headings"
+        )
+        
+        # Настройка колонок
+        self.trainings_tree.heading("id", text="ID")
+        self.trainings_tree.heading("date", text="Дата")
+        self.trainings_tree.heading("duration", text="Длительность (мин)")
+        self.trainings_tree.heading("focus_area", text="Область внимания")
+        self.trainings_tree.heading("coach", text="Тренер")
+        
+        self.trainings_tree.column("id", width=50, anchor='center')
+        self.trainings_tree.column("date", width=100)
+        self.trainings_tree.column("duration", width=120, anchor='center')
+        self.trainings_tree.column("focus_area", width=300)
+        self.trainings_tree.column("coach", width=150)
+        
+        # Полоса прокрутки
+        scrollbar = ttk.Scrollbar(
+            main_frame, 
+            orient="vertical", 
+            command=self.trainings_tree.yview
+        )
+        self.trainings_tree.configure(yscrollcommand=scrollbar.set)
+        
+        # Размещение элементов
+        self.trainings_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Кнопка закрытия
+        btn_frame = tk.Frame(main_frame)
+        btn_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Button(
+            btn_frame,
+            text="Закрыть",
+            command=trainings_window.destroy,
+            bg="#f44336",
+            fg="white"
+        ).pack(pady=5)
+        
+        # Загрузка данных
+        self.update_trainings_list()
+
+    def update_trainings_list(self):
+        """Загружает список тренировок из БД"""
+        for item in self.trainings_tree.get_children():
+            self.trainings_tree.delete(item)
+            
+        trainings = (Training
+                    .select(Training, User)
+                    .join(User)
+                    .order_by(Training.date.desc()))
+        
+        for training in trainings:
+            self.trainings_tree.insert("", tk.END, values=(
+                training.id,
+                training.date.strftime('%Y-%m-%d'),
+                training.duration,
+                training.focus_area,
+                training.coach.username
+            ))
+
     def create_player_info_section(self):
         info_frame = tk.LabelFrame(self.frame, text="Информация об игроке", padx=10, pady=10)
         info_frame.pack(fill=tk.X, pady=5)

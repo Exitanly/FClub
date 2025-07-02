@@ -35,154 +35,103 @@ class AdminInterface:
         ).pack(side=tk.LEFT, padx=5)
 
     def show_coaches_list(self):
-        """Показывает список тренеров"""
+        """Показывает список тренеров с кнопками удаления"""
         self.clear_interface()
-        self.create_coaches_section()
+        
+        coaches_frame = tk.LabelFrame(self.frame, text="Список тренеров", padx=10, pady=10)
+        coaches_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Создаем Treeview
+        tree = ttk.Treeview(coaches_frame, columns=("id", "username"), show="headings")
+        tree.heading("id", text="ID")
+        tree.heading("username", text="Имя")
+        
+        tree.column("id", width=50, anchor='center')
+        tree.column("username", width=200)
+
+        # Отдельный фрейм для кнопок
+        buttons_frame = tk.Frame(coaches_frame)
+        buttons_frame.pack(fill=tk.X, pady=5)
+
+        # Заполняем данными
+        coaches = User.select().where(User.role == 'coach').order_by(User.username)
+        for coach in coaches:
+            tree.insert("", tk.END, values=(coach.id, coach.username))
+            
+            # Добавляем кнопку удаления в отдельный фрейм
+            tk.Button(
+                buttons_frame,
+                text=f"Удалить {coach.username}",
+                command=partial(self.delete_user, coach.id),
+                bg="#f44336",
+                fg="white"
+            ).pack(side=tk.LEFT, padx=5)
+
+        tree.pack(fill=tk.BOTH, expand=True)
 
     def show_players_list(self):
-        """Показывает список игроков"""
+        """Показывает список игроков с кнопками удаления"""
         self.clear_interface()
-        self.create_players_section()
+        
+        players_frame = tk.LabelFrame(self.frame, text="Список игроков", padx=10, pady=10)
+        players_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Создаем Treeview
+        tree = ttk.Treeview(players_frame, columns=("id", "name", "jersey"), show="headings")
+        tree.heading("id", text="ID")
+        tree.heading("name", text="Имя")
+        tree.heading("jersey", text="Номер")
+        
+        tree.column("id", width=50, anchor='center')
+        tree.column("name", width=200)
+        tree.column("jersey", width=80, anchor='center')
+
+        # Отдельный фрейм для кнопок
+        buttons_frame = tk.Frame(players_frame)
+        buttons_frame.pack(fill=tk.X, pady=5)
+
+        # Заполняем данными
+        players = Player.select().join(User).order_by(Player.name)
+        for player in players:
+            tree.insert("", tk.END, values=(player.id, player.name, player.jersey_number))
+            
+            # Добавляем кнопку удаления в отдельный фрейм
+            tk.Button(
+                buttons_frame,
+                text=f"Удалить {player.name}",
+                command=partial(self.delete_player, player.id),
+                bg="#f44336",
+                fg="white"
+            ).pack(side=tk.LEFT, padx=5)
+
+        tree.pack(fill=tk.BOTH, expand=True)
+
+    def delete_user(self, user_id):
+        """Удаляет пользователя (тренера)"""
+        if messagebox.askyesno("Подтверждение", "Вы уверены, что хотите удалить этого тренера?"):
+            try:
+                with DB.atomic():
+                    User.delete().where(User.id == user_id).execute()
+                    messagebox.showinfo("Успех", "Тренер успешно удален")
+                    self.show_coaches_list()
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось удалить тренера: {str(e)}")
+
+    def delete_player(self, player_id):
+        """Удаляет игрока и связанного пользователя"""
+        if messagebox.askyesno("Подтверждение", "Вы уверены, что хотите удалить этого игрока?"):
+            try:
+                with DB.atomic():
+                    player = Player.get(Player.id == player_id)
+                    user_id = player.user.id
+                    Player.delete().where(Player.id == player_id).execute()
+                    User.delete().where(User.id == user_id).execute()
+                    messagebox.showinfo("Успех", "Игрок успешно удален")
+                    self.show_players_list()
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось удалить игрока: {str(e)}")
 
     def clear_interface(self):
         """Очищает текущий интерфейс"""
         for widget in self.frame.winfo_children()[1:]:  # Сохраняем только control_buttons
             widget.destroy()
-
-    def create_coaches_section(self):
-        """Создает раздел со списком тренеров"""
-        coaches_frame = tk.LabelFrame(self.frame, text="Список тренеров", padx=10, pady=10)
-        coaches_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Таблица тренеров
-        columns = ("id", "username", "actions")
-        self.coaches_tree = ttk.Treeview(
-            coaches_frame, 
-            columns=columns, 
-            show="headings"
-        )
-        
-        # Настройка колонок
-        self.coaches_tree.heading("id", text="ID")
-        self.coaches_tree.heading("username", text="Имя")
-        self.coaches_tree.heading("actions", text="Действия")
-        
-        self.coaches_tree.column("id", width=50, anchor='center')
-        self.coaches_tree.column("username", width=200)
-        self.coaches_tree.column("actions", width=100, anchor='center')
-        
-        scrollbar = ttk.Scrollbar(coaches_frame, orient="vertical", command=self.coaches_tree.yview)
-        self.coaches_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
-        self.coaches_tree.pack(fill=tk.BOTH, expand=True)
-        
-        self.update_coaches_list()
-
-    def create_players_section(self):
-        """Создает раздел со списком игроков"""
-        players_frame = tk.LabelFrame(self.frame, text="Список игроков", padx=10, pady=10)
-        players_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Таблица игроков
-        columns = ("id", "name", "jersey", "actions")
-        self.players_tree = ttk.Treeview(
-            players_frame, 
-            columns=columns, 
-            show="headings"
-        )
-        
-        # Настройка колонок
-        self.players_tree.heading("id", text="ID")
-        self.players_tree.heading("name", text="Имя")
-        self.players_tree.heading("jersey", text="Номер")
-        self.players_tree.heading("actions", text="Действия")
-        
-        self.players_tree.column("id", width=50, anchor='center')
-        self.players_tree.column("name", width=200)
-        self.players_tree.column("jersey", width=80, anchor='center')
-        self.players_tree.column("actions", width=100, anchor='center')
-        
-        scrollbar = ttk.Scrollbar(players_frame, orient="vertical", command=self.players_tree.yview)
-        self.players_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
-        self.players_tree.pack(fill=tk.BOTH, expand=True)
-        
-        self.update_players_list()
-
-    def update_coaches_list(self):
-        """Обновляет список тренеров"""
-        for item in self.coaches_tree.get_children():
-            self.coaches_tree.delete(item)
-            
-        coaches = User.select().where(User.role == 'coach').order_by(User.username)
-        
-        for coach in coaches:
-            btn_frame = tk.Frame()
-            tk.Button(
-                btn_frame,
-                text="Удалить",
-                command=partial(self.delete_coach, coach.id),
-                bg="#f44336",
-                fg="white"
-            ).pack(padx=5)
-            
-            self.coaches_tree.insert("", tk.END, values=(
-                coach.id,
-                coach.username,
-                ""
-            ))
-            self.coaches_tree.window_create("", window=btn_frame)
-
-    def update_players_list(self):
-        """Обновляет список игроков"""
-        for item in self.players_tree.get_children():
-            self.players_tree.delete(item)
-            
-        players = Player.select().join(User).order_by(Player.name)
-        
-        for player in players:
-            btn_frame = tk.Frame()
-            tk.Button(
-                btn_frame,
-                text="Удалить",
-                command=partial(self.delete_player, player.id),
-                bg="#f44336",
-                fg="white"
-            ).pack(padx=5)
-            
-            self.players_tree.insert("", tk.END, values=(
-                player.id,
-                player.name,
-                player.jersey_number,
-                ""
-            ))
-            self.players_tree.window_create("", window=btn_frame)
-
-    def delete_coach(self, coach_id):
-        """Удаляет тренера"""
-        try:
-            with DB.atomic():
-                # Удаляем из users
-                User.delete().where(User.id == coach_id).execute()
-                messagebox.showinfo("Успех", "Тренер успешно удален")
-                self.update_coaches_list()
-        except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось удалить тренера: {str(e)}")
-
-    def delete_player(self, player_id):
-        """Удаляет игрока"""
-        try:
-            with DB.atomic():
-                # Получаем user_id игрока
-                player = Player.get(Player.id == player_id)
-                user_id = player.user.id
-                
-                # Удаляем из players
-                Player.delete().where(Player.id == player_id).execute()
-                # Удаляем из users
-                User.delete().where(User.id == user_id).execute()
-                
-                messagebox.showinfo("Успех", "Игрок успешно удален")
-                self.update_players_list()
-        except Exception as e:
-            messagebox.showerror("Ошибка", f"Не удалось удалить игрока: {str(e)}")
